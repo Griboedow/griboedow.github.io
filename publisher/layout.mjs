@@ -65,7 +65,8 @@ export function home(projects, illustrations) {
   }).join('');
   const body = `<div class="hero-wrap"><section class="hero frame">
     <div class="hero-copy"><p class="kicker">Nikolai Kochkin</p><h1>Mathematics<br><em>in motion</em></h1>
-    <p class="intro">Research on chaotic attractors, nonlinear circuits and the mechanics of 3D-printed designs. Read the studies, inspect the data and run the calculations.</p>
+    <p class="intro">I do this for fun. I’d love to spot a pattern nobody has seen before or try an experiment nobody has run. If these notes come in handy or give you an idea to chase, I’ll be happy.</p>
+    <p class="intro">I did most of this work with Codex, using the most capable model available to me at the time. Please double-check any result you plan to build on.</p>
     <a class="button" href="#projects">Browse the research</a></div>${figure}</section></div>
     <section class="projects frame" id="projects"><div class="section-head"><h2>Research projects</h2>
     <p>Selected studies and the complete catalog for each project.</p></div><div class="cards">${cards}</div></section>`;
