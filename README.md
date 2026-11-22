@@ -10,7 +10,7 @@ GitHub Actions checks the three source revisions every three hours. A push to th
 
 The publisher discovers Markdown throughout each repository, including nested research notes, manuscripts, reproduction guides and results. Repository instructions, third-party notices and an explicitly vendored upstream reference stay in the original repositories. The catalog also includes the projects' HTML research reports and atlases. Code and data links retain their source revision. Original source licenses and third-party notices apply.
 
-The homepage links to each project's README. Project pages show illustrated studies near the top and link to the full searchable catalog under **All studies**. The figure selections in `publisher/featured.mjs` and `publisher/project-figures.mjs` point to source paths. The build obtains titles and images from the same revision as the articles. Adding a new Markdown study to an existing project requires no change to this repository.
+The homepage links to each project's README, the interactive Chua layer atlas and the Chaos Attractor Lab portrait gallery. The gallery is built from the illustrations in the Chaos README and links each preview to its original figure and study notes. Edit the README to add a portrait or change its caption. Each project also has a searchable catalog under **All studies**. Adding a new Markdown study to an existing project requires no change to this repository.
 
 ## Local preview
 

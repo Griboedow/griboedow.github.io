@@ -47,20 +47,24 @@ ${math ? '<link rel="stylesheet" href="/assets/katex/katex.min.css">' : ''}
 
 export function home(projects, illustrations) {
   const banner = illustrations[0];
-  const report = projects.find(project => project.repo === banner?.repo)?.entries.get(banner?.path);
-  const figure = report ? `<a class="home-feature" href="${report.url}"><figure class="hero-figure">
+  const figure = banner ? `<a class="home-feature" href="${escape(banner.url)}"><figure class="hero-figure">
     <img fetchpriority="high" src="${banner.image}" width="${banner.width}" height="${banner.height}" alt="${escape(banner.alt)}">
-    <figcaption>${escape(report.title)}</figcaption></figure></a>` : '';
+    <figcaption>${escape(banner.title)}</figcaption></figure></a>` : '';
   const cards = projects.map(project => {
     const art = illustrations.find(item => item.repo === project.repo);
+    const overview = projectUrl(project.repo);
     const thumb = art ? `<img class="project-thumb ${project.repo}" src="${art.image}" width="${art.width}" height="${art.height}" alt="">` : '';
-    return `<li><a href="${projectUrl(project.repo)}">${thumb}<span>${escape(project.title)}</span></a></li>`;
+    const label = art?.overviewSection?.label || art?.viewerLink;
+    const destination = art?.overviewSection ? overview + '#' + art.overviewSection.fragment : art?.url;
+    const shortcut = label ? `<a class="project-shortcut" href="${escape(destination)}">${escape(label)}</a>` : '';
+    return `<li>${thumb}<div class="project-links"><a class="project-title" href="${overview}">${escape(project.title)}</a>${shortcut}</div></li>`;
   }).join('');
   const body = `<div class="hero-wrap"><section class="hero frame home-hero">
     <div class="hero-copy"><p class="kicker">Nikolai Kochkin</p><h1>Mathematics<br><em>in motion</em></h1>
-    <nav class="project-choices" id="projects" aria-label="Research projects"><ul>${cards}</ul></nav></div>
-    ${figure}
-    <div class="home-intro"><p class="intro">I do this for fun. I’d love to spot a pattern nobody has seen before or try an experiment nobody has run. If these notes come in handy or give you an idea to chase, I’ll be happy.</p>
-    <p class="intro">I did most of this work with Codex, using the most capable model available to me at the time. Please double-check any result you plan to build on.</p></div></section></div>`;
+    <p class="intro">I leave notes here on things I’ve tinkered with or explored a little, so you can find them with a regular Google search. Don’t take them too seriously. I do this for fun.</p>
+    <p class="intro">I’d love to spot a pattern nobody has seen before or try an experiment nobody has run. If these notes come in handy or give you an idea to chase, I’ll be happy.</p>
+    <p class="intro">I did most of this work with Codex, using the most capable model available to me at the time. Please double-check any result you plan to build on.</p></div>
+    <nav class="project-choices" id="projects" aria-label="Research projects"><ul>${cards}</ul></nav>
+    ${figure}</section></div>`;
   return layout({title:'Mathematical research on attractors, circuits and mechanics',description:'Explore reproducible studies of chaotic attractors, Chua’s circuit and mechanical models for 3D-printed designs by Nikolai Kochkin.',url:'/',image:banner?.image,body});
 }

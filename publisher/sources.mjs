@@ -29,9 +29,7 @@ function git(directory, args, input = '') {
 
 // The prefetch is one network request for all missing reports. Letting cat-file
 // discover missing blobs itself would make a separate request for each one.
-async function readMarkdownBlobs(directory, ids) {
-  const contents = new Map();
-  if (!ids.length) return contents;
+async function prefetchBlobs(directory, ids) {
   const localObjects = await git(directory, ['cat-file', '--batch-all-objects', '--unordered', '--batch-check=%(objectname)']);
   const local = new Set(localObjects.toString().trim().split('\n'));
   const missing = ids.filter(id => !local.has(id));
@@ -40,7 +38,19 @@ async function readMarkdownBlobs(directory, ids) {
       '--no-write-fetch-head', '--no-auto-maintenance', '--no-recurse-submodules',
       '--filter=blob:none', '--stdin', 'origin'], missing.join('\n') + '\n');
   }
+}
 
+export async function prefetchSourceFiles(cache, project, paths) {
+  const directory = resolve(cache, project.repo + '.git');
+  const tree = await git(directory, ['ls-tree', '-rz', project.sha, '--', ...paths]);
+  const ids = tree.toString().split('\0').filter(Boolean).map(entry => entry.slice(0, entry.indexOf('\t')).split(' ')[2]);
+  await prefetchBlobs(directory, ids);
+}
+
+async function readMarkdownBlobs(directory, ids) {
+  const contents = new Map();
+  if (!ids.length) return contents;
+  await prefetchBlobs(directory, ids);
   const batch = await git(directory, ['cat-file', '--batch'], ids.join('\n') + '\n');
   let offset = 0;
   for (const id of ids) {

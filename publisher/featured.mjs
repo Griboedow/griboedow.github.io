@@ -13,6 +13,7 @@ export const featured = [
   {
     repo: 'chaos-attractor-lab',
     path: 'results/wow_search_20261122/symmetry/README.md',
+    overviewSection: { fragment: 'portrait-gallery', label: 'Browse the attractor portraits' },
     sourceImage: 'results/wow_search_20261122/symmetry/cyclic-13745.png',
     sourceLicense: 'LICENSE',
     image: '/assets/chaos-two-ring-orbit.webp',
@@ -21,7 +22,8 @@ export const featured = [
   },
   {
     repo: 'chua-gpu-atlas',
-    path: 'docs/chua-refined-atlas.md',
+    path: 'results/chua-layer-atlas/atlas.html',
+    viewerLink: 'Open the interactive layer atlas',
     sourceImage: 'docs/assets/chua-readme-layers-poster.png',
     // The left panel shows the 3D layers. Keep its axes in the thumbnail.
     crop: [0.115, 0.185, 0.567, 0.897],
@@ -48,6 +50,8 @@ from PIL import Image
 with Image.open(io.BytesIO(sys.stdin.buffer.read())) as figure:
     limit = int(sys.argv[2])
     crop = json.loads(sys.argv[3])
+    if getattr(figure, "is_animated", False):
+        figure.seek(figure.n_frames // 2)
     if crop:
         dimensions = (figure.width, figure.height, figure.width, figure.height)
         figure = figure.crop(tuple(round(fraction * size) for fraction, size in zip(crop, dimensions)))
@@ -80,14 +84,16 @@ export async function createFeaturedImages(projects, distDirectory, cacheDirecto
   const ready = [];
   for (const card of featured) {
     const project = projects.find(item => item.repo === card.repo);
-    if (!project?.files.has(card.path) || !project.files.has(card.sourceImage) || !project.files.has(card.sourceLicense)) {
+    const entry = project?.entries.get(card.path);
+    if (!entry || !project.files.has(card.sourceImage) || !project.files.has(card.sourceLicense)) {
       console.warn(`Skipping unavailable featured report or figure: ${card.repo}/${card.path}`);
       continue;
     }
     const license = await readSource(cacheDirectory, project, card.sourceLicense);
     const dimensions = await createThumbnail(project, card.sourceImage, join(directory, basename(card.image)), cacheDirectory, 1200, card.crop);
     await writeFile(join(directory, basename(card.license)), license);
-    ready.push({ ...card, ...dimensions });
+    const url = entry.url + (card.viewerLink ? '#interactive' : '');
+    ready.push({ ...card, ...dimensions, url, title: card.viewerLink || entry.title });
   }
   return ready;
 }

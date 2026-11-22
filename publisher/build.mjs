@@ -5,7 +5,7 @@ import sanitizeHtml from 'sanitize-html';
 import { loadSources } from './sources.mjs';
 import { renderMarkdown, extractTitle } from './content.mjs';
 import { createFeaturedImages } from './featured.mjs';
-import { createProjectFigures, withProjectFigures } from './project-figures.mjs';
+import { withProjectFigures } from './project-figures.mjs';
 import { loadSupplements } from './supplements.mjs';
 import { createArchiveLinkResolver } from './archive-links.mjs';
 import { renderCatalog, catalogSupplements } from './catalog.mjs';
@@ -108,7 +108,6 @@ try {
     await cp(join(source,'LICENSE'),join(assets,'fonts',font + '-LICENSE.txt'));
   }
   const illustrations = await createFeaturedImages(projects, output, cache);
-  const projectFigures = await createProjectFigures(projects, output, cache, illustrations);
   const context = {resolvePage, pathType, repoSha:name=>slug(name)?.sha, distDirectory:output};
   for (const p of projects) {
     const reports = await loadSupplements(p, cache, p.supplements, context);
@@ -129,7 +128,7 @@ try {
       const overview = path === 'README.md';
       const article = /<h1[ >]/.test(html) ? html : '<h1>' + escape(title) + '</h1>' + html;
       const body = `<div class="frame article-frame">${projectNav(p,overview ? 'overview' : 'study',catalogIds)}
-      <article class="paper">${overview ? withProjectFigures(article,projectFigures.get(p.repo)) : article}</article>
+      <article class="paper">${overview ? await withProjectFigures(article,p,output,cache,illustrations) : article}</article>
       <aside class="provenance"><strong>Source</strong><div><a href="${origin}/blob/${p.sha}/${encoded}">${escape(path)}</a>
       <span> · revision ${p.sha.slice(0,7)}</span></div><a href="${overview ? catalog : projectUrl(p.repo)}">${overview ? 'All studies' : escape(p.title)}</a></aside></div>`;
       await page(url,layout({repo:p.repo,title,description:summary(html,title + ' — ' + p.title),url,type:overview ? 'website' : 'article',math:html.includes('class="katex'),projectOverview:overview,body}));

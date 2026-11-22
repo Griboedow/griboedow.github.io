@@ -39,4 +39,9 @@ for (const panel of document.querySelectorAll('.source-viewer[data-viewer-file]'
       button.disabled = false;
     }
   });
+  function openLinkedViewer() {
+    if (location.hash === '#' + panel.id && !button.disabled) button.click();
+  }
+  window.addEventListener('hashchange', openLinkedViewer);
+  openLinkedViewer();
 }

@@ -41,7 +41,38 @@
   padding: .65rem .8rem;
 }
 
+.portrait-gallery {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  margin: 1.5rem 0;
+}
+
+.portrait-gallery .figure-preview {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.readme-contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem 1rem;
+  font: 500 1rem/1.5 var(--sans);
+}
+
+.paper #portrait-gallery {
+  margin-block: 1rem .65rem;
+  padding-top: .5rem;
+}
+
+.paper .portrait-gallery {
+  margin-top: 0;
+}
+
+.paper .readme-index {
+  margin-block: .8rem;
+}
+
 @media (max-width: 480px) {
+  .portrait-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .project-figures a { font-size: .94rem; }
   .project-figures .figure-title { padding: .5rem .55rem; }
 }

@@ -2,7 +2,9 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sanitizeHtml from 'sanitize-html';
-import { catalogUrl, projectUrl, names, site } from './layout.mjs';
+import { catalogUrl, documentUrl, projectUrl, names, site } from './layout.mjs';
+import { featured } from './featured.mjs';
+import { portraitSource } from './project-figures.mjs';
 
 // Check the deployed layout without fetching an external host or modifying dist.
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -25,6 +27,9 @@ function fileAt(url) {
 
 const sitemap = await readFile(join(dist, 'sitemap.xml'), 'utf8');
 const revision = JSON.parse(await readFile(join(dist, 'publication.json'), 'utf8'));
+const chaosOverview = projectUrl('chaos-attractor-lab');
+const chaosImageBase = 'https://raw.githubusercontent.com/Griboedow/chaos-attractor-lab/' + revision.sources['chaos-attractor-lab'] + '/';
+const readmePortraits = new Map();
 const legacyReadmes = new Map(Object.keys(names).map(repo => [projectUrl(repo) + 'README.html', projectUrl(repo)]));
 const pages = new Map();
 const mappedFiles = new Set();
@@ -54,6 +59,7 @@ for (const page of pages.values()) {
   let hasHeading = false;
   let hasMath = false;
   let hasMathML = false;
+  let hasHomeIntro = false;
   let inArticle = false;
   let inProjectFigures = false;
   // Use the HTML parser already used by the publisher to decode URL entities
@@ -61,10 +67,21 @@ for (const page of pages.values()) {
   sanitizeHtml(html, {
     allowedTags: [], allowedAttributes: {},
     onOpenTag(tag, a) {
+      if (page.url.pathname === '/') {
+        if (tag === 'p' && a.class === 'intro') {
+          hasHomeIntro = true;
+          if (page.ids.has('projects')) problems.add('Homepage introduction follows the project list');
+        }
+        if (a.id === 'projects' && !hasHomeIntro) problems.add('Project list precedes the homepage introduction');
+      }
       if (tag === 'article' && a.class?.split(/\s+/).includes('paper')) inArticle = true;
       if (inArticle && tag === 'nav' && a.class?.split(/\s+/).includes('project-figures')) inProjectFigures = true;
       if (inProjectFigures && tag === 'a' && a.href) page.figureLinks.push(a.href);
       if (inProjectFigures && tag === 'img' && a.src) page.previewImages++;
+      if (page.url.pathname === chaosOverview && inArticle && !inProjectFigures && tag === 'img') {
+        const source = portraitSource(a.src, chaosImageBase);
+        if (source && !readmePortraits.has(source.key)) readmePortraits.set(source.key, a.id);
+      }
       if (a['data-legacy-catalog-fragments'] !== undefined) {
         page.legacyCatalog = { url: a['data-catalog-url'], fragments: new Set(a['data-legacy-catalog-fragments'].split(/\s+/)) };
       }
@@ -139,6 +156,14 @@ for (const file of files) {
   }
 }
 const home = pages.get('/');
+for (const { repo, path } of featured.filter(card => card.viewerLink)) {
+  const report = documentUrl(repo, path);
+  const link = report + '#interactive';
+  if (!pages.get(report)?.ids.has('interactive') ||
+      ![home, pages.get(projectUrl(repo))].every(page => page?.links.some(({ value }) => value === link))) {
+    problems.add('Missing direct interactive atlas link or viewer: ' + link);
+  }
+}
 for (const repo of Object.keys(names)) {
   const project = projectUrl(repo);
   const catalog = catalogUrl(repo);
@@ -149,8 +174,19 @@ for (const repo of Object.keys(names)) {
   const source = 'https://github.com/Griboedow/' + repo + '/blob/' + revision.sources[repo] + '/README.md';
   if (!home?.links.some(link => link.value === project)) problems.add('Homepage omits project overview: ' + project);
   if (!overview?.links.some(link => link.value === source) || !overview.previewImages ||
-      !overview.figureLinks.some(link => link.startsWith(project) && pages.has(link))) {
+      !overview.figureLinks.some(link => link.startsWith(project) && pages.has(link.split('#')[0]))) {
     problems.add('Project overview is missing its source README or figures: ' + project);
+  }
+  if (project === chaosOverview) {
+    const destinations = new Set((overview?.figureLinks || [])
+      .filter(link => link.startsWith(project + '#'))
+      .map(link => decodeURIComponent(link.slice(project.length + 1))));
+    const ids = [...(overview?.ids || [])];
+    if (ids.indexOf('contents') < 0 || ids.indexOf('portrait-gallery') <= ids.indexOf('contents') ||
+        !readmePortraits.size || destinations.size !== readmePortraits.size ||
+        [...readmePortraits.values()].some(id => !id || !destinations.has(id))) {
+      problems.add('Chaos overview needs its contents followed by a gallery linking to every original portrait');
+    }
   }
   if (!overview?.links.some(link => link.value === catalog) || !directory?.ids.has('catalog-search') || documents.length < 2) {
     problems.add('Missing navigable project catalog or studies: ' + catalog);

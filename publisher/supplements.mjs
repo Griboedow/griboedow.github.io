@@ -104,7 +104,7 @@ export async function loadSupplements(project, cacheDirectory, candidates, optio
       const base = prefix + posix.dirname(encoded) + '/';
       const viewer = ctx.distDirectory ? '<button type="button" class="button" data-load-viewer hidden>Open interactive viewer</button>' +
         '<p role="status" aria-live="polite"></p><script defer src="/viewer.js"></script>' : '';
-      const tools = '<section class="source-viewer" data-viewer-file="' + escape(assetPrefix + '/original.txt') + '" data-viewer-base="' +
+      const tools = '<section class="source-viewer" id="interactive" data-viewer-file="' + escape(assetPrefix + '/original.txt') + '" data-viewer-base="' +
         escape(base) + '" aria-label="Interactive viewer">' + viewer + '<p><a href="' +
         escape('https://github.com/Griboedow/' + project.repo + '/blob/' + project.sha + '/' + encoded) +
         '">Original HTML on GitHub</a></p></section>' + companionFigure(project,ctx,!/<img\b/i.test(html));
