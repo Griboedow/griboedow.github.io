@@ -21,12 +21,14 @@ export const featured = [
   },
   {
     repo: 'chua-gpu-atlas',
-    path: 'docs/chua-saddle-residence.md',
-    sourceImage: 'results/chua-saddle-residence/voltage-start-residence.png',
+    path: 'docs/chua-refined-atlas.md',
+    sourceImage: 'docs/assets/chua-readme-layers-poster.png',
+    // The left panel shows the 3D layers. Keep its axes in the thumbnail.
+    crop: [0.115, 0.185, 0.567, 0.897],
     sourceLicense: 'LICENSE',
-    image: '/assets/chua-voltage-returns.webp',
+    image: '/assets/chua-periodic-orbit-layers.webp',
     license: '/assets/chua-license.txt',
-    alt: 'Four plots compare voltage launches, departures from a saddle cycle and the predicted number of turns.',
+    alt: 'Overlapping colored sheets in the three-parameter atlas of periodic orbits in Chua’s circuit.',
   },
   {
     repo: 'math-models',
@@ -45,6 +47,10 @@ from PIL import Image
 
 with Image.open(io.BytesIO(sys.stdin.buffer.read())) as figure:
     limit = int(sys.argv[2])
+    crop = json.loads(sys.argv[3])
+    if crop:
+        dimensions = (figure.width, figure.height, figure.width, figure.height)
+        figure = figure.crop(tuple(round(fraction * size) for fraction, size in zip(crop, dimensions)))
     figure.thumbnail((limit, limit), Image.Resampling.LANCZOS)
     figure.save(sys.argv[1], format="WEBP", quality=88, method=6)
     background = "#%02x%02x%02x" % figure.convert("RGB").getpixel((0, 0))
@@ -60,9 +66,9 @@ async function readSource(cacheDirectory, project, path) {
   return stdout;
 }
 
-export async function createThumbnail(project, sourcePath, targetFile, cacheDirectory, limit = 1200) {
+export async function createThumbnail(project, sourcePath, targetFile, cacheDirectory, limit = 1200, crop = null) {
   const source = await readSource(cacheDirectory, project, sourcePath);
-  const conversion = execute(process.env.PYTHON || 'python', ['-c', thumbnail, targetFile, String(limit)], { windowsHide: true });
+  const conversion = execute(process.env.PYTHON || 'python', ['-c', thumbnail, targetFile, String(limit), JSON.stringify(crop)], { windowsHide: true });
   const [{ stdout }] = await Promise.all([conversion, pipeline(Readable.from([source]), conversion.child.stdin)]);
   const [width, height, background] = JSON.parse(stdout);
   return { width, height, background };
@@ -79,7 +85,7 @@ export async function createFeaturedImages(projects, distDirectory, cacheDirecto
       continue;
     }
     const license = await readSource(cacheDirectory, project, card.sourceLicense);
-    const dimensions = await createThumbnail(project, card.sourceImage, join(directory, basename(card.image)), cacheDirectory);
+    const dimensions = await createThumbnail(project, card.sourceImage, join(directory, basename(card.image)), cacheDirectory, 1200, card.crop);
     await writeFile(join(directory, basename(card.license)), license);
     ready.push({ ...card, ...dimensions });
   }
