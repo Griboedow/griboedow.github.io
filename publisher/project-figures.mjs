@@ -74,11 +74,15 @@ function figureLinks(figures, label, gallery = false) {
 const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
 
 export function portraitSource(src, prefix) {
-  if (src?.startsWith(prefix)) {
+  if (src?.slice(0, prefix.length).toLowerCase() === prefix.toLowerCase()) {
     // The Markdown renderer percent-encodes each path segment and retains
     // optional GitHub queries or SVG fragments. Only the path names a Git blob.
-    const path = decodeURIComponent(src.slice(prefix.length).split(/[?#]/, 1)[0]);
-    return { key: path, path };
+    try {
+      const path = decodeURIComponent(src.slice(prefix.length).split(/[?#]/, 1)[0]);
+      if (path) return { key: path, path };
+    } catch (error) {
+      if (!(error instanceof URIError)) throw error;
+    }
   }
   if (/^https:\/\/(?:github\.com\/user-attachments\/assets\/|user-images\.githubusercontent\.com\/)/i.test(src)) {
     return { key: src };
@@ -112,7 +116,7 @@ async function portraitGallery(readme, project, output, cache) {
   if (!portraits.size) return readme;
   // Vector images retain their original resolution. GitHub attachments have
   // no Git blob and are displayed from the same URL as the source README.
-  const rasters = [...portraits.values()].filter(card => card.path && !/\.svgz?$/i.test(card.path));
+  const rasters = [...portraits.values()].filter(card => /\.(?:png|jpe?g|webp|gif|bmp|tiff?)$/i.test(card.path));
   if (rasters.length) await prefetchSourceFiles(cache, project, rasters.map(card => card.path));
   for (const card of rasters) {
     const asset = '/assets/chaos-portraits/' + encodePath(card.path).replaceAll('*', '%2A') + '.webp';
