@@ -74,7 +74,7 @@ for (const page of pages.values()) {
       }
       if (a.id) page.ids.add(a.id);
       if (tag === 'a' && a.name) page.ids.add(a.name);
-      for (const value of [a.href, a.src, a.poster, tag === 'meta' && a.property === 'og:image' && a.content]) {
+      for (const value of [a.href, a.src, a.poster, a['data-viewer-file'], tag === 'meta' && a.property === 'og:image' && a.content]) {
         if (value) page.links.push({ value, authored: inArticle });
       }
     },
@@ -106,7 +106,9 @@ function checkLink(value, from, authored = false) {
   }
   const destination = pages.get(url.pathname);
   if (url.hash && destination) {
-    const id = decodeURIComponent(url.hash.slice(1)).split(':~:text=')[0];
+    let id;
+    try { id = decodeURIComponent(url.hash.slice(1)).split(':~:text=')[0]; }
+    catch { problems.add('Invalid fragment encoding in ' + from.pathname + ': ' + url.hash); return; }
     if (id && id !== 'top' && !destination.ids.has(id)) {
       const message = from.pathname + ' → ' + url.pathname + url.hash;
       (authored ? authoredAnchors : problems).add('Missing fragment: ' + message);

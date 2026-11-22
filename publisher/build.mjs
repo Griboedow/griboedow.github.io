@@ -6,6 +6,7 @@ import { loadSources } from './sources.mjs';
 import { renderMarkdown, extractTitle } from './content.mjs';
 import { createFeaturedImages } from './featured.mjs';
 import { loadSupplements } from './supplements.mjs';
+import { createArchiveLinkResolver } from './archive-links.mjs';
 import { renderCatalog, catalogSupplements } from './catalog.mjs';
 import { layout, home, names, site, escape, documentUrl, catalogUrl } from './layout.mjs';
 
@@ -51,6 +52,7 @@ for (const p of projects) {
     }
   }
   p.entries = new Map();
+  p.resolveArchiveLink = createArchiveLinkResolver(p);
   for (const [path, source] of p.documents) {
     if (!isPublication(path)) continue;
     const title = extractTitle(source, path);
@@ -98,7 +100,7 @@ try {
     await page(catalog,layout({title:p.title + ' research catalog',description:'Browse all published studies, results and project documentation from ' + p.title + '.',url:catalog,body:'<div class="frame catalog-frame">' + catalogBody + '</div>'}));
     for (const entry of p.entries.values()) {
       const {path,title,url} = entry;
-      const html = entry.html ?? renderMarkdown(p.documents.get(path), {repo:p.repo, path, sha:p.sha, ...context});
+      const html = entry.html ?? renderMarkdown(p.documents.get(path), {repo:p.repo, path, sha:p.sha, resolveArchiveLink:p.resolveArchiveLink, ...context});
       const encoded = path.split('/').map(encodeURIComponent).join('/');
       const origin = 'https://github.com/Griboedow/' + p.repo;
       const hasTitle = /<h1[ >]/.test(html);

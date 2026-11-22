@@ -54,13 +54,14 @@ function targetUrl(target, context, asset) {
 }
 
 export function rewriteUrl(value, ctx, asset = false) {
-  const url = value.trim();
+  let url = value.trim();
   if (!url || url.startsWith('#') || url.startsWith('?')) return url;
   const repo = repositoryName(ctx.repo);
   // URL handles dot segments, encoded spaces, queries and fragments uniformly.
   const origin = 'https://repository.invalid';
   let target;
   try {
+    url = ctx.resolveArchiveLink?.(ctx.path, url) ?? url;
     target = new URL(url, `${origin}/${encodePath(ctx.path)}`);
     if (!['http:', 'https:'].includes(target.protocol)) return url;
     const path = decodeURIComponent(target.pathname).replace(/^\/+|\/+$/g, '');
