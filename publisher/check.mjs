@@ -60,6 +60,7 @@ for (const page of pages.values()) {
   let hasMath = false;
   let hasMathML = false;
   let hasHomeIntro = false;
+  let hasCardDescription = false;
   let inArticle = false;
   let inProjectFigures = false;
   // Use the HTML parser already used by the publisher to decode URL entities
@@ -73,6 +74,12 @@ for (const page of pages.values()) {
           if (page.ids.has('projects')) problems.add('Homepage introduction follows the project list');
         }
         if (a.id === 'projects' && !hasHomeIntro) problems.add('Project list precedes the homepage introduction');
+        if (tag === 'li') hasCardDescription = false;
+        if (tag === 'p' && a.class === 'project-description') hasCardDescription = true;
+        if (tag === 'a' && (a.href?.startsWith('/research/') || a.href === '/#projects') &&
+            (!page.ids.has('projects') || !hasCardDescription)) {
+          problems.add('A homepage project link precedes its description: ' + a.href);
+        }
       }
       if (tag === 'article' && a.class?.split(/\s+/).includes('paper')) inArticle = true;
       if (inArticle && tag === 'nav' && a.class?.split(/\s+/).includes('project-figures')) inProjectFigures = true;

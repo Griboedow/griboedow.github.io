@@ -113,7 +113,7 @@ try {
     const reports = await loadSupplements(p, cache, p.supplements, context);
     for (const report of reports) Object.assign(p.entries.get(report.path), report);
   }
-  await page('/',home(projects,illustrations));
+  const sentences = new Intl.Segmenter('en', {granularity:'sentence'});
   for (const p of projects) {
     const catalog = catalogUrl(p.repo);
     const list = [...p.entries.values()];
@@ -131,10 +131,13 @@ try {
       <article class="paper">${overview ? await withProjectFigures(article,p,output,cache,illustrations) : article}</article>
       <aside class="provenance"><strong>Source</strong><div><a href="${origin}/blob/${p.sha}/${encoded}">${escape(path)}</a>
       <span> · revision ${p.sha.slice(0,7)}</span></div><a href="${overview ? catalog : projectUrl(p.repo)}">${overview ? 'All studies' : escape(p.title)}</a></aside></div>`;
-      await page(url,layout({repo:p.repo,title,description:summary(html,title + ' — ' + p.title),url,type:overview ? 'website' : 'article',math:html.includes('class="katex'),projectOverview:overview,body}));
+      const description = summary(html,title + ' — ' + p.title);
+      if (overview) p.cardDescription = sentences.segment(description).containing(0).segment.trim();
+      await page(url,layout({repo:p.repo,title,description,url,type:overview ? 'website' : 'article',math:html.includes('class="katex'),projectOverview:overview,body}));
       if (overview) await writeFile(join(output,'research',p.repo,'README.html'),legacyReadme(p));
     }
   }
+  await page('/',home(projects,illustrations));
   const sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     [...urls].sort().map(url=>'  <url><loc>' + site + escape(url) + '</loc></url>').join('\n') + '\n</urlset>\n';
   await writeFile(join(output,'sitemap.xml'),sitemap);

@@ -14,6 +14,7 @@ export const featured = [
     repo: 'chaos-attractor-lab',
     path: 'results/wow_search_20261122/symmetry/README.md',
     overviewSection: { fragment: 'portrait-gallery', label: 'Browse the attractor portraits' },
+    studyLabel: 'Two-ring orbit study',
     sourceImage: 'results/wow_search_20261122/symmetry/cyclic-13745.png',
     sourceLicense: 'LICENSE',
     image: '/assets/chaos-two-ring-orbit.webp',

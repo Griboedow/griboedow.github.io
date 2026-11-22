@@ -39,32 +39,30 @@ ${math ? '<link rel="stylesheet" href="/assets/katex/katex.min.css">' : ''}
 </head><body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="mast"><div class="frame"><a href="/" class="brand"><span class="brand-mark" aria-hidden="true">∿</span>Research notes</a>
-<nav aria-label="Main"><a href="/#projects">Projects</a><a href="https://github.com/Griboedow${repo ? '/' + escape(repo) : ''}">GitHub</a></nav></div></header>
+<nav aria-label="Main">${url === '/' ? '' : '<a href="/#projects">Projects</a>'}<a href="https://github.com/Griboedow${repo ? '/' + escape(repo) : ''}">GitHub</a></nav></div></header>
 <main id="main">${body}</main>
 <footer class="foot"><div class="frame"><span>Nikolai Kochkin · Research notes</span><a href="https://github.com/Griboedow/griboedow.github.io">Site source</a></div></footer>
 </body></html>\n`;
 }
 
 export function home(projects, illustrations) {
-  const banner = illustrations[0];
-  const figure = banner ? `<a class="home-feature" href="${escape(banner.url)}"><figure class="hero-figure">
-    <img fetchpriority="high" src="${banner.image}" width="${banner.width}" height="${banner.height}" alt="${escape(banner.alt)}">
-    <figcaption>${escape(banner.title)}</figcaption></figure></a>` : '';
   const cards = projects.map(project => {
     const art = illustrations.find(item => item.repo === project.repo);
     const overview = projectUrl(project.repo);
-    const thumb = art ? `<img class="project-thumb ${project.repo}" src="${art.image}" width="${art.width}" height="${art.height}" alt="">` : '';
+    const thumb = art ? `<img class="project-thumb" src="${escape(art.image)}" width="${art.width}" height="${art.height}" alt="${escape(art.alt)}" style="background-color:${escape(art.background)}">` : '';
     const label = art?.overviewSection?.label || art?.viewerLink;
     const destination = art?.overviewSection ? overview + '#' + art.overviewSection.fragment : art?.url;
     const shortcut = label ? `<a class="project-shortcut" href="${escape(destination)}">${escape(label)}</a>` : '';
-    return `<li>${thumb}<div class="project-links"><a class="project-title" href="${overview}">${escape(project.title)}</a>${shortcut}</div></li>`;
+    const study = art?.studyLabel ? `<a class="project-shortcut" href="${escape(art.url)}">${escape(art.studyLabel)}</a>` : '';
+    return `<li>${thumb}<div class="project-body"><h3>${escape(project.title)}</h3><p class="project-description">${escape(project.cardDescription)}</p>
+      <div class="project-links"><a class="project-overview" href="${overview}" aria-label="${escape(project.title)} project overview">Project overview</a>${shortcut}${study}</div></div></li>`;
   }).join('');
-  const body = `<div class="hero-wrap"><section class="hero frame home-hero">
-    <div class="hero-copy"><p class="kicker">Nikolai Kochkin</p><h1>Mathematics<br><em>in motion</em></h1>
-    <p class="intro">I leave notes here on things I’ve tinkered with or explored a little, so you can find them with a regular Google search. Don’t take them too seriously. I do this for fun.</p>
-    <p class="intro">I’d love to spot a pattern nobody has seen before or try an experiment nobody has run. If these notes come in handy or give you an idea to chase, I’ll be happy.</p>
-    <p class="intro">I did most of this work with Codex, using the most capable model available to me at the time. Please double-check any result you plan to build on.</p></div>
-    <nav class="project-choices" id="projects" aria-label="Research projects"><ul>${cards}</ul></nav>
-    ${figure}</section></div>`;
-  return layout({title:'Mathematical research on attractors, circuits and mechanics',description:'Explore reproducible studies of chaotic attractors, Chua’s circuit and mechanical models for 3D-printed designs by Nikolai Kochkin.',url:'/',image:banner?.image,body});
+  const body = `<div class="hero-wrap"><header class="hero frame home-hero">
+    <div><p class="kicker">Nikolai Kochkin</p><h1>Mathematics<br><em>in motion</em></h1></div>
+    <div class="hero-copy"><p class="intro">I keep notes here on things I’ve tinkered with, so someone asking the same questions can find them through a Google search.</p>
+    <p class="intro">I do this for fun. I’d love to spot a pattern nobody’s seen before or try an experiment nobody’s run. If any of this helps you or gives you an idea of your own, I’ll be glad.</p>
+    <p class="intro">Take the results with a grain of salt. I did most of this work with Codex, using the most capable model I had access to at the time. Please double-check anything you build on.</p></div>
+    </header></div>
+    <nav class="project-choices frame" id="projects" aria-labelledby="projects-heading"><h2 id="projects-heading">Projects</h2><ul>${cards}</ul></nav>`;
+  return layout({title:'Mathematical research on attractors, circuits and mechanics',description:'Nikolai Kochkin’s personal research notes on chaotic attractors, Chua’s circuit and the mechanics of 3D-printed designs.',url:'/',image:illustrations[0]?.image,body});
 }
