@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sanitizeHtml from 'sanitize-html';
-import { catalogUrl, names, site } from './layout.mjs';
+import { catalogUrl, projectUrl, names, site } from './layout.mjs';
 
 // Check the deployed layout without fetching an external host or modifying dist.
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -24,6 +24,8 @@ function fileAt(url) {
 }
 
 const sitemap = await readFile(join(dist, 'sitemap.xml'), 'utf8');
+const revision = JSON.parse(await readFile(join(dist, 'publication.json'), 'utf8'));
+const legacyReadmes = new Map(Object.keys(names).map(repo => [projectUrl(repo) + 'README.html', projectUrl(repo)]));
 const pages = new Map();
 const mappedFiles = new Set();
 for (const match of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) {
@@ -33,11 +35,11 @@ for (const match of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) {
     throw new Error('Invalid, duplicate or missing sitemap target: ' + url.href);
   }
   mappedFiles.add(file);
-  pages.set(url.pathname, { url, ids: new Set(), links: [] });
+  pages.set(url.pathname, { url, ids: new Set(), links: [], figureLinks: [], previewImages: 0, catalogFragments: [] });
 }
 for (const file of files) {
   if (/\.html$/i.test(file) && !mappedFiles.has(file) &&
-      file !== '404.html' && !/^google[\da-f]+\.html$/i.test(file)) {
+      !legacyReadmes.has('/' + file) && file !== '404.html' && !/^google[\da-f]+\.html$/i.test(file)) {
     problems.add('HTML page missing from sitemap: ' + file);
   }
 }
@@ -53,12 +55,22 @@ for (const page of pages.values()) {
   let hasMath = false;
   let hasMathML = false;
   let inArticle = false;
+  let inProjectFigures = false;
   // Use the HTML parser already used by the publisher to decode URL entities
   // and ignore apparent markup inside code, social descriptions, or text.
   sanitizeHtml(html, {
     allowedTags: [], allowedAttributes: {},
     onOpenTag(tag, a) {
       if (tag === 'article' && a.class?.split(/\s+/).includes('paper')) inArticle = true;
+      if (inArticle && tag === 'nav' && a.class?.split(/\s+/).includes('project-figures')) inProjectFigures = true;
+      if (inProjectFigures && tag === 'a' && a.href) page.figureLinks.push(a.href);
+      if (inProjectFigures && tag === 'img' && a.src) page.previewImages++;
+      if (a['data-legacy-catalog-fragments'] !== undefined) {
+        page.legacyCatalog = { url: a['data-catalog-url'], fragments: new Set(a['data-legacy-catalog-fragments'].split(/\s+/)) };
+      }
+      if (tag === 'section' && a.class?.split(/\s+/).includes('catalog-group') && a.id) {
+        page.catalogFragments.push(a.id, a['aria-labelledby']);
+      }
       if (tag === 'title') hasTitle = true;
       if (tag === 'h1') hasHeading = true;
       if (tag === 'meta' && a.name === 'description' && a.content?.trim()) hasDescription = true;
@@ -80,6 +92,7 @@ for (const page of pages.values()) {
     },
     onCloseTag(tag) {
       if (tag === 'article') inArticle = false;
+      if (tag === 'nav') inProjectFigures = false;
     },
   });
   if (canonical.length !== 1 || canonical[0] !== page.url.href) problems.add('Canonical mismatch: ' + page.url.pathname);
@@ -127,12 +140,48 @@ for (const file of files) {
 }
 const home = pages.get('/');
 for (const repo of Object.keys(names)) {
+  const project = projectUrl(repo);
   const catalog = catalogUrl(repo);
-  const links = new Set(pages.get(catalog)?.links.map(link => link.value));
-  const documents = [...pages.keys()].filter(path => path !== catalog && path.startsWith(catalog));
-  if (!home?.links.some(link => link.value === catalog) || !documents.length) problems.add('Missing catalog or studies: ' + catalog);
+  const overview = pages.get(project);
+  const directory = pages.get(catalog);
+  const links = new Set(directory?.links.map(link => link.value));
+  const documents = [...pages.keys()].filter(path => path !== catalog && path.startsWith(project));
+  const source = 'https://github.com/Griboedow/' + repo + '/blob/' + revision.sources[repo] + '/README.md';
+  if (!home?.links.some(link => link.value === project)) problems.add('Homepage omits project overview: ' + project);
+  if (!overview?.links.some(link => link.value === source) || !overview.previewImages ||
+      !overview.figureLinks.some(link => link.startsWith(project) && pages.has(link))) {
+    problems.add('Project overview is missing its source README or figures: ' + project);
+  }
+  if (!overview?.links.some(link => link.value === catalog) || !directory?.ids.has('catalog-search') || documents.length < 2) {
+    problems.add('Missing navigable project catalog or studies: ' + catalog);
+  }
+  if (overview?.legacyCatalog?.url !== catalog || directory?.catalogFragments.some(id =>
+    !overview.ids.has(id) && !overview.legacyCatalog.fragments.has(id))) {
+    problems.add('Missing legacy catalog fragment routing: ' + project);
+  }
   for (const path of documents) {
     if (!links.has(path)) problems.add('Catalog omits ' + path);
+    if (path !== project && !pages.get(path).links.some(link => link.value === project)) {
+      problems.add('Study has no link to the project overview: ' + path);
+    }
+  }
+}
+for (const [alias, project] of legacyReadmes) {
+  if (pages.has(alias)) problems.add('Legacy README alias in sitemap: ' + alias);
+  const html = await readFile(join(dist, alias.slice(1)), 'utf8');
+  let noindex = false;
+  let fallback = false;
+  let canonical = false;
+  sanitizeHtml(html, {
+    allowedTags: [], allowedAttributes: {},
+    onOpenTag(tag, attrs) {
+      if (tag === 'meta' && attrs.name === 'robots' && /\b(?:noindex|none)\b/i.test(attrs.content)) noindex = true;
+      if (tag === 'link' && attrs.rel === 'canonical' && attrs.href === site + project) canonical = true;
+      if (tag === 'a' && attrs.href && new URL(attrs.href, site + alias).href === site + project) fallback = true;
+    },
+  });
+  if (!noindex || !canonical || !fallback) {
+    problems.add('Legacy README missing indexing exclusion, canonical URL or fallback to project overview: ' + alias);
   }
 }
 const robots = await readFile(join(dist, 'robots.txt'), 'utf8');

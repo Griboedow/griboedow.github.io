@@ -1,0 +1,63 @@
+.home-hero {
+  grid-template-areas: "projects figure" "intro figure";
+  row-gap: 1.45rem;
+}
+
+.home-hero .hero-copy { grid-area: projects; padding: 0; }
+.home-intro { grid-area: intro; align-self: start; }
+.home-intro .intro { margin: 0; }
+.home-intro .intro + .intro { margin-top: .8rem; }
+.home-feature { grid-area: figure; display: block; color: #c5eae1; text-decoration: none; }
+.home-feature:hover { color: white; }
+.home-feature:hover figcaption { text-decoration: underline; }
+.home-feature .hero-figure img { height: auto; aspect-ratio: 1; }
+
+.project-choices { scroll-margin-top: 1rem; }
+.project-choices ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .65rem;
+  margin: 1.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.project-choices li { display: flex; }
+.project-choices a {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #b5c8c9;
+  border-radius: .35rem;
+  background: #fcfdfc;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-decoration: none;
+}
+.project-choices a:hover { border-color: var(--link); color: var(--link); text-decoration: underline; }
+.project-choices span { margin-block: auto; padding: .55rem .65rem; }
+.project-thumb {
+  width: 100%;
+  height: clamp(3.5rem, 6vw, 5rem);
+  object-fit: contain;
+  background: white;
+  border-bottom: 1px solid var(--line);
+}
+.project-thumb.chaos-attractor-lab { background: #070c14; }
+
+@media(max-width: 820px) {
+  .home-hero { grid-template-columns: 1fr 1fr; grid-template-areas: "projects figure" "intro intro"; }
+  .home-intro { max-width: 68ch; }
+  .home-intro .intro { max-width: none; }
+  .project-choices ul { grid-template-columns: 1fr; gap: .4rem; }
+  .project-choices a { flex-direction: row; align-items: center; }
+  .project-thumb { width: 4.5rem; height: 2.8rem; border: 0; border-right: 1px solid var(--line); }
+}
+
+@media(max-width: 620px) {
+  .home-hero { grid-template-columns: 1fr; grid-template-areas: "projects" "intro" "figure"; }
+  .project-choices ul { margin-top: 1.2rem; }
+  .home-feature .hero-figure img { max-height: 26rem; }
+}

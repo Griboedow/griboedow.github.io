@@ -44,9 +44,11 @@ import io, json, sys
 from PIL import Image
 
 with Image.open(io.BytesIO(sys.stdin.buffer.read())) as figure:
-    figure.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+    limit = int(sys.argv[2])
+    figure.thumbnail((limit, limit), Image.Resampling.LANCZOS)
     figure.save(sys.argv[1], format="WEBP", quality=88, method=6)
-    print(json.dumps(figure.size))
+    background = "#%02x%02x%02x" % figure.convert("RGB").getpixel((0, 0))
+    print(json.dumps([*figure.size, background]))
 `;
 
 async function readSource(cacheDirectory, project, path) {
@@ -56,6 +58,14 @@ async function readSource(cacheDirectory, project, path) {
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
   });
   return stdout;
+}
+
+export async function createThumbnail(project, sourcePath, targetFile, cacheDirectory, limit = 1200) {
+  const source = await readSource(cacheDirectory, project, sourcePath);
+  const conversion = execute(process.env.PYTHON || 'python', ['-c', thumbnail, targetFile, String(limit)], { windowsHide: true });
+  const [{ stdout }] = await Promise.all([conversion, pipeline(Readable.from([source]), conversion.child.stdin)]);
+  const [width, height, background] = JSON.parse(stdout);
+  return { width, height, background };
 }
 
 export async function createFeaturedImages(projects, distDirectory, cacheDirectory) {
@@ -69,12 +79,9 @@ export async function createFeaturedImages(projects, distDirectory, cacheDirecto
       continue;
     }
     const license = await readSource(cacheDirectory, project, card.sourceLicense);
-    const source = await readSource(cacheDirectory, project, card.sourceImage);
-    const conversion = execute(process.env.PYTHON || 'python', ['-c', thumbnail, join(directory, basename(card.image))], { windowsHide: true });
-    const [{ stdout }] = await Promise.all([conversion, pipeline(Readable.from([source]), conversion.child.stdin)]);
-    const [width, height] = JSON.parse(stdout);
+    const dimensions = await createThumbnail(project, card.sourceImage, join(directory, basename(card.image)), cacheDirectory);
     await writeFile(join(directory, basename(card.license)), license);
-    ready.push({ ...card, width, height });
+    ready.push({ ...card, ...dimensions });
   }
   return ready;
 }

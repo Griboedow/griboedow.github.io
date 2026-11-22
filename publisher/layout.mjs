@@ -12,13 +12,16 @@ export const names = {
   'math-models': 'Mathematical Models'
 };
 
-export function catalogUrl(repo) { return '/research/' + repo + '/'; }
+export function projectUrl(repo) { return '/research/' + repo + '/'; }
+
+export function catalogUrl(repo) { return projectUrl(repo) + 'catalog/'; }
 
 export function documentUrl(repo, path) {
-  return catalogUrl(repo) + path.split('/').map(encodeURIComponent).join('/').replace(/\.(md|markdown)$/i, '.html');
+  if (path === 'README.md') return projectUrl(repo);
+  return projectUrl(repo) + path.split('/').map(encodeURIComponent).join('/').replace(/\.(md|markdown)$/i, '.html');
 }
 
-export function layout({ title, description, url, body, math = false, type = 'website', image, index = true }) {
+export function layout({ title, description, url, body, math = false, type = 'website', image, index = true, repo, projectOverview = false }) {
   const fullTitle = title + ' · Nikolai Kochkin';
   return `<!doctype html>
 <html lang="en"><head>
@@ -30,45 +33,34 @@ ${index ? '<link rel="canonical" href="' + site + escape(url) + '">' : '<meta na
 <meta property="og:type" content="${type}"><meta property="og:url" content="${site}${escape(url)}">
 ${image ? '<meta property="og:image" content="' + site + escape(image) + '">' : ''}
 <link rel="stylesheet" href="/assets/site.css">
+${url === '/' ? '<link rel="stylesheet" href="/assets/home-projects.css">' : ''}
+${projectOverview ? '<link rel="stylesheet" href="/assets/project-figures.css"><script defer src="/legacy-catalog.js"></script>' : ''}
 ${math ? '<link rel="stylesheet" href="/assets/katex/katex.min.css">' : ''}
 </head><body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="mast"><div class="frame"><a href="/" class="brand"><span class="brand-mark" aria-hidden="true">∿</span>Research notes</a>
-<nav aria-label="Main"><a href="/#projects">Projects</a><a href="https://github.com/Griboedow">GitHub</a></nav></div></header>
+<nav aria-label="Main"><a href="/#projects">Projects</a><a href="https://github.com/Griboedow${repo ? '/' + escape(repo) : ''}">GitHub</a></nav></div></header>
 <main id="main">${body}</main>
 <footer class="foot"><div class="frame"><span>Nikolai Kochkin · Research notes</span><a href="https://github.com/Griboedow/griboedow.github.io">Site source</a></div></footer>
 </body></html>\n`;
 }
 
-const readingPaths = {
-  'chua-gpu-atlas': ['docs/chua-knot-atlas.md', 'docs/chua-hidden-infinity-certificate.md'],
-  'chaos-attractor-lab': ['docs/chaotic-forms-20261122.md', 'results/art_20261122/README.md', 'docs/icosahedral-flow.md'],
-  'math-models': ['vehicles/toy-physics/README.md']
-};
-
 export function home(projects, illustrations) {
   const banner = illustrations[0];
-  const figure = banner ? `<figure class="hero-figure"><a href="${documentUrl(banner.repo,banner.path)}">
-    <img fetchpriority="high" src="${banner.image}" alt="${escape(banner.alt)}"></a>
-    <figcaption><a href="${documentUrl(banner.repo,banner.path)}">${escape(names[banner.repo])} · View study</a></figcaption></figure>` : '';
+  const report = projects.find(project => project.repo === banner?.repo)?.entries.get(banner?.path);
+  const figure = report ? `<a class="home-feature" href="${report.url}"><figure class="hero-figure">
+    <img fetchpriority="high" src="${banner.image}" width="${banner.width}" height="${banner.height}" alt="${escape(banner.alt)}">
+    <figcaption>${escape(report.title)}</figcaption></figure></a>` : '';
   const cards = projects.map(project => {
     const art = illustrations.find(item => item.repo === project.repo);
-    const selected = [art?.path, ...(readingPaths[project.repo] || [])].filter(p => project.entries.has(p));
-    const links = selected.map(path => {
-      const entry = project.entries.get(path);
-      return `<li><a href="${entry.url}">${escape(entry.title)}</a></li>`;
-    }).join('');
-    return `<section class="project-card"><div class="card-art ${project.repo}">
-      ${art ? '<a href="' + documentUrl(art.repo,art.path) + '" tabindex="-1" aria-hidden="true"><img loading="lazy" src="' + art.image + '" alt=""></a>' : ''}
-      </div><div class="card-body"><h3><a href="${catalogUrl(project.repo)}">${escape(project.title)}</a></h3>
-      <ul>${links}</ul><a class="catalog-link" href="${catalogUrl(project.repo)}">Full catalog <span>(${project.entries.size})</span></a></div></section>`;
+    const thumb = art ? `<img class="project-thumb ${project.repo}" src="${art.image}" width="${art.width}" height="${art.height}" alt="">` : '';
+    return `<li><a href="${projectUrl(project.repo)}">${thumb}<span>${escape(project.title)}</span></a></li>`;
   }).join('');
-  const body = `<div class="hero-wrap"><section class="hero frame">
+  const body = `<div class="hero-wrap"><section class="hero frame home-hero">
     <div class="hero-copy"><p class="kicker">Nikolai Kochkin</p><h1>Mathematics<br><em>in motion</em></h1>
-    <p class="intro">I do this for fun. I’d love to spot a pattern nobody has seen before or try an experiment nobody has run. If these notes come in handy or give you an idea to chase, I’ll be happy.</p>
-    <p class="intro">I did most of this work with Codex, using the most capable model available to me at the time. Please double-check any result you plan to build on.</p>
-    <a class="button" href="#projects">Browse the research</a></div>${figure}</section></div>
-    <section class="projects frame" id="projects"><div class="section-head"><h2>Research projects</h2>
-    <p>Selected studies and the complete catalog for each project.</p></div><div class="cards">${cards}</div></section>`;
+    <nav class="project-choices" id="projects" aria-label="Research projects"><ul>${cards}</ul></nav></div>
+    ${figure}
+    <div class="home-intro"><p class="intro">I do this for fun. I’d love to spot a pattern nobody has seen before or try an experiment nobody has run. If these notes come in handy or give you an idea to chase, I’ll be happy.</p>
+    <p class="intro">I did most of this work with Codex, using the most capable model available to me at the time. Please double-check any result you plan to build on.</p></div></section></div>`;
   return layout({title:'Mathematical research on attractors, circuits and mechanics',description:'Explore reproducible studies of chaotic attractors, Chua’s circuit and mechanical models for 3D-printed designs by Nikolai Kochkin.',url:'/',image:banner?.image,body});
 }

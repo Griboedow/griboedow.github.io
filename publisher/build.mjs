@@ -5,10 +5,11 @@ import sanitizeHtml from 'sanitize-html';
 import { loadSources } from './sources.mjs';
 import { renderMarkdown, extractTitle } from './content.mjs';
 import { createFeaturedImages } from './featured.mjs';
+import { createProjectFigures, withProjectFigures } from './project-figures.mjs';
 import { loadSupplements } from './supplements.mjs';
 import { createArchiveLinkResolver } from './archive-links.mjs';
 import { renderCatalog, catalogSupplements } from './catalog.mjs';
-import { layout, home, names, site, escape, documentUrl, catalogUrl } from './layout.mjs';
+import { layout, home, names, site, escape, documentUrl, projectUrl, catalogUrl } from './layout.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const cache = resolve(process.env.SOURCE_CACHE || join(root, '.cache'));
@@ -39,6 +40,26 @@ function isPublication(path) {
   // These are repository instructions, legal notices, and an explicitly vendored reference.
   return !/(^|\/)(?:AGENTS|THIRD_PARTY_NOTICES)\.md$/i.test(path)
     && path !== 'results/attractor-novelty/reference/README-atlas-upstream.md';
+}
+
+function projectNav(project, view, catalogIds = '') {
+  const name = escape(project.title);
+  const overview = projectUrl(project.repo);
+  const catalog = catalogUrl(project.repo);
+  const origin = view === 'overview' ? '<span aria-current="page">Project overview</span>' : `<a href="${overview}">${name}</a>`;
+  const directory = view === 'catalog' ? '<span aria-current="page">All studies</span>' : `<a href="${catalog}">All studies</a>`;
+  const legacy = view === 'overview' ? ` data-legacy-catalog-fragments="${escape(catalogIds)}" data-catalog-url="${catalog}"` : '';
+  return `<nav class="crumbs project-nav" aria-label="Project navigation"${legacy}>${origin}
+    <span aria-hidden="true">/</span>${directory}</nav>`;
+}
+
+function legacyReadme(project) {
+  const url = projectUrl(project.repo);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>${escape(project.title)}</title><link rel="canonical" href="${site}${url}"><meta name="robots" content="noindex">
+<script>location.replace(${JSON.stringify(url)} + location.search + location.hash)</script>
+<meta http-equiv="refresh" content="0;url=${url}"></head>
+<body><p><a href="${url}">${escape(project.title)}</a></p></body></html>\n`;
 }
 
 for (const p of projects) {
@@ -87,6 +108,7 @@ try {
     await cp(join(source,'LICENSE'),join(assets,'fonts',font + '-LICENSE.txt'));
   }
   const illustrations = await createFeaturedImages(projects, output, cache);
+  const projectFigures = await createProjectFigures(projects, output, cache, illustrations);
   const context = {resolvePage, pathType, repoSha:name=>slug(name)?.sha, distDirectory:output};
   for (const p of projects) {
     const reports = await loadSupplements(p, cache, p.supplements, context);
@@ -97,18 +119,21 @@ try {
     const catalog = catalogUrl(p.repo);
     const list = [...p.entries.values()];
     const catalogBody = renderCatalog(p,list);
-    await page(catalog,layout({title:p.title + ' research catalog',description:'Browse all published studies, results and project documentation from ' + p.title + '.',url:catalog,body:'<div class="frame catalog-frame">' + catalogBody + '</div>'}));
+    const catalogIds = [...catalogBody.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]).join(' ');
+    await page(catalog,layout({repo:p.repo,title:p.title + ' research catalog',description:'Browse all published studies, results and project documentation from ' + p.title + '.',url:catalog,body:'<div class="frame catalog-frame">' + projectNav(p,'catalog') + catalogBody + '</div>'}));
     for (const entry of p.entries.values()) {
       const {path,title,url} = entry;
       const html = entry.html ?? renderMarkdown(p.documents.get(path), {repo:p.repo, path, sha:p.sha, resolveArchiveLink:p.resolveArchiveLink, ...context});
       const encoded = path.split('/').map(encodeURIComponent).join('/');
       const origin = 'https://github.com/Griboedow/' + p.repo;
-      const hasTitle = /<h1[ >]/.test(html);
-      const body = `<div class="frame article-frame"><nav class="crumbs" aria-label="Breadcrumb"><a href="/">Research notes</a><span aria-hidden="true">/</span><a href="${catalog}">${escape(p.title)}</a></nav>
-      <article class="paper">${hasTitle ? '' : '<h1>' + escape(title) + '</h1>'}${html}</article>
+      const overview = path === 'README.md';
+      const article = /<h1[ >]/.test(html) ? html : '<h1>' + escape(title) + '</h1>' + html;
+      const body = `<div class="frame article-frame">${projectNav(p,overview ? 'overview' : 'study',catalogIds)}
+      <article class="paper">${overview ? withProjectFigures(article,projectFigures.get(p.repo)) : article}</article>
       <aside class="provenance"><strong>Source</strong><div><a href="${origin}/blob/${p.sha}/${encoded}">${escape(path)}</a>
-      <span> · revision ${p.sha.slice(0,7)}</span></div><a href="${catalog}">Browse ${escape(p.title)}</a></aside></div>`;
-      await page(url,layout({title,description:summary(html,title + ' — ' + p.title),url,type:'article',math:html.includes('class="katex'),body}));
+      <span> · revision ${p.sha.slice(0,7)}</span></div><a href="${overview ? catalog : projectUrl(p.repo)}">${overview ? 'All studies' : escape(p.title)}</a></aside></div>`;
+      await page(url,layout({repo:p.repo,title,description:summary(html,title + ' — ' + p.title),url,type:overview ? 'website' : 'article',math:html.includes('class="katex'),projectOverview:overview,body}));
+      if (overview) await writeFile(join(output,'research',p.repo,'README.html'),legacyReadme(p));
     }
   }
   const sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +

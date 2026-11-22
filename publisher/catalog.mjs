@@ -120,8 +120,7 @@ export function renderCatalog(project, entries) {
   const description = project.description ? `<p class="lead">${escape(project.description)}</p>` : '';
   return `<div class="catalog" data-catalog>
     <header class="study-head catalog-head">
-      <p class="kicker">Research catalog</p>
-      <h1>${escape(project.title)}</h1>
+      <h1>All studies</h1>
       ${description}
     </header>
     <form class="catalog-filter" role="search" data-catalog-filter hidden>
